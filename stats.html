@@ -236,6 +236,31 @@ async function loadGear() {
     throw e;
   }
 }
+// This page names every weapon and accessory. Unless the map is set to show all item names (View > Spoilers there,
+// kept in this browser), it asks before it shows anything; the answer holds until the tab is closed.
+async function spoilerGate() {
+  let setting = null;
+  try {
+    setting = JSON.parse(localStorage.getItem('qd.settings') || '{}').spoilers;
+    if (sessionStorage.getItem('qd-stats-shown')) return;
+  } catch { /* no storage: ask */ }
+  if (setting === true) return;
+  await new Promise(resolve => {
+    const el = document.body.appendChild(document.createElement('div'));
+    el.style.cssText = 'position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:24px;background:var(--bg);text-align:center';
+    el.innerHTML = `<div style="max-width:520px;line-height:1.6"><h2 style="margin:0 0 8px">Spoilers ahead</h2>
+      <p>This page lists every weapon and accessory in the game by name, with its stats and where to get it.</p>
+      ${setting === false ? '<p style="color:var(--dim)">Your map is set to hide the names of items you have not found yet.</p>' : ''}
+      <p style="margin-top:18px"><button id="gate-back">Back to the map</button> &nbsp; <button id="gate-go">Show the page</button></p></div>`;
+    el.querySelector('#gate-back').onclick = () => { location.href = './'; };
+    el.querySelector('#gate-go').onclick = () => {
+      try { sessionStorage.setItem('qd-stats-shown', '1'); } catch { /* asked again next time */ }
+      el.remove();
+      resolve();
+    };
+  });
+}
+await spoilerGate();
 const D = await loadGear();
 const $ = s => document.querySelector(s);
 const esc = v => String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));

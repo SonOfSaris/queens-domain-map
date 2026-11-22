@@ -28,6 +28,8 @@ again, right-click it to quit. Starting the program a second time just opens the
 Good to know
 ------------
 
+- Spoilers: the first time the map opens it asks whether to name every item or to keep names hidden until you have
+  found the item. View > Spoilers changes that later.
 - Everything stays on your PC. The program serves the page to your own browser only (http://localhost:8765) and
   reads your save files without ever writing to them.
 - After a game update the map says that the game's files have changed and offers to rebuild. You can also do that at

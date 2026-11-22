@@ -3,8 +3,13 @@
 An interactive 3D map of the whole world of Queen's Domain that runs in your browser: every item pickup, secret wall,
 boss, NPC, save point, teleporter, locked door and inscription as a clickable guide, ticked off from your own save file.
 
+![The map with a pickup selected whose name is still hidden](docs/screenshot.jpg)
+
 Unofficial and fan-made; not affiliated with the game's developers or publisher. **No game content is in this
 repository or in the download.** The map is built on your PC from your own copy of the game.
+
+It can be used without spoilers: on its first start the map asks whether to name every item or to keep names,
+pictures and descriptions hidden until you have found the item yourself.
 
 ## Getting it
 
@@ -62,8 +67,8 @@ the distance and tilt it had before, around wherever you walked to.
 | D-pad up / down | Fly to your character / cutaway |
 | Start / Back | Hide the side panel / markers through walls |
 
-- **Guide tab** — tick categories on and off, expand one (▸) to list everything in it, click an entry to fly to the next
-  one you have not found. Searching matches item, enemy, NPC and place names. "Pickups:" filters item pickups by the
+- **Guide tab** — tick categories on and off, open a category's list with the count-and-arrow button at the right of
+  its row, click an entry to fly to the next one you have not found. Searching matches item, enemy, NPC and place names. "Pickups:" filters item pickups by the
   placement tag the designers gave them (*hidden*, *out of view*, *accessible later*), to those inside containers or
   to those an enemy carries.
   The Save box at the top loads a save slot (see "Your save file" below).
@@ -77,6 +82,16 @@ the distance and tilt it had before, around wherever you walked to.
 
 Found marks you set by hand are stored in your browser for `localhost:8765`. Use *View → Progress → Export / Import* to
 back them up or move them to another browser.
+
+### Spoilers
+
+The first time the map opens it asks whether item names should be shown. *View → Spoilers* changes the answer at any
+time. With names hidden, an item you do not have yet shows only its kind ("Unknown weapon") and where it is: no name,
+no picture, no description, on the map, in the lists, on cards and in the search. An item gets its name once your save
+has or had it, once one of its pickups is found (by your save or marked by hand), or when you press *show* on its
+card; *Hide looked-up names again* undoes the last kind. Coins are always named. Bosses, NPCs, zones and inscriptions
+are named either way, and so are the enemies and shops an item comes from. The gear stats page asks before it shows
+its tables unless the map is set to show everything.
 
 ## Your save file
 

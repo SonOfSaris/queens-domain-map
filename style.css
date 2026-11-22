@@ -55,15 +55,27 @@ kbd { background: #2a313d; border: 1px solid #3a4352; border-bottom-width: 2px; 
 
 .list { overflow-y: auto; min-height: 0; flex: 1; margin: 0 -6px; padding: 0 6px; scrollbar-width: thin; scrollbar-color: #3a4352 transparent; }
 .cat { border-radius: 6px; margin-bottom: 2px; }
-.cat > .head { display: flex; align-items: center; gap: 8px; padding: 5px 6px; border-radius: 6px; cursor: pointer; user-select: none; }
+.cat > .head { display: flex; align-items: center; gap: 8px; padding: 5px 6px; min-height: 32px; border-radius: 6px; cursor: pointer; user-select: none; }
 .cat > .head:hover { background: #ffffff0d; }
 .cat .sw { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; flex: none;
   border: 3px solid var(--c); background: #15181e; }
 .cat .name { flex: 1; font-weight: 600; }
 .cat.off .name, .cat.off .count { opacity: .45; }
 .cat .count { color: var(--dim); font-variant-numeric: tabular-nums; font-size: 12px; }
-.cat .chev { color: var(--dim); width: 12px; text-align: center; transition: transform .15s; }
-.cat.open .chev { transform: rotate(90deg); }
+/* the button that opens a category's list: the count and the arrow together, as tall as the row */
+.cat .chev { display: flex; align-items: center; justify-content: flex-end; gap: 9px; align-self: stretch; flex: none;
+  min-width: 58px; margin: -5px -6px -5px 0; padding: 0 11px 0 12px; background: none; border: 1px solid transparent;
+  border-radius: 6px; color: var(--dim); font: inherit; cursor: pointer; transition: background .1s, border-color .1s; }
+/* the arrow is drawn (two sides of a square), so it stays sharp at this size; its glyph is only a fallback */
+.cat .chev i { width: 9px; height: 9px; flex: none; font-size: 0; border: solid currentColor; border-width: 0 2.5px 2.5px 0;
+  margin: 0 3px 0 0; transform: rotate(-45deg); transition: transform .12s, color .1s; }
+.cat .chev:hover { background: #ffffff1f; border-color: #ffffff26; }
+.cat .chev:hover i, .cat.open .chev i { color: var(--accent); }
+.cat .chev:hover .count { color: var(--text); }
+.cat .chev:active { background: #ffffff38; }
+.cat .chev:focus-visible { outline: 1px solid var(--accent); }
+.cat.open .chev i { transform: translateY(-2px) rotate(45deg); }
+.cat.open > .head { background: #ffffff0a; }
 .cat .sub { display: none; padding: 2px 0 6px 12px; }
 .cat.open .sub { display: block; }
 .group-title { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .8px; margin: 10px 6px 4px; }
@@ -78,6 +90,13 @@ kbd { background: #2a313d; border: 1px solid #3a4352; border-bottom-width: 2px; 
 .subhead:first-child { margin-top: 2px; }
 .ico { width: 22px; height: 22px; flex: none; background-repeat: no-repeat; image-rendering: auto; border-radius: 4px; }
 .ico.glyph { display: grid; place-items: center; font-size: 13px; }
+
+/* an item whose name is hidden (View > Spoilers) */
+.unk { color: var(--dim); }
+.unknown { display: inline-grid; place-items: center; color: var(--dim); font-weight: 700; background-color: #ffffff12; }
+#card .big.unknown { font-size: 26px; }
+.show-name { padding: 0 8px; margin-left: 4px; border-radius: 20px; font-size: 11px; font-weight: 400; vertical-align: 1px; }
+.show-name:hover { border-color: var(--accent); color: var(--accent); }
 
 .zone { display: flex; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; }
 .zone:hover { background: #ffffff0d; }

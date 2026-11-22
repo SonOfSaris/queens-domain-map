@@ -88,6 +88,14 @@
     <label class="slider">Icon size <output id="size-out"></output>
       <input type="range" id="size" min="0.5" max="2.5" step="0.1" value="1"></label>
 
+    <h3>Spoilers</h3>
+    <label class="chk"><input type="checkbox" id="spoilers"> Show the names of items I have not found</label>
+    <p class="hint">Off: an item you do not have yet shows only its kind ("Unknown weapon"), without name, picture or
+      description. Items your save has, and pickups you have found, keep their names. <i>show</i> on a card names one item.</p>
+    <div class="row tools">
+      <button id="spoil-forget" hidden title="Hide the names again that you looked up with 'show'">Hide looked-up names again</button>
+    </div>
+
     <h3>Scene</h3>
     <label class="chk"><input type="checkbox" id="textures" checked> Textures</label>
     <label class="chk"><input type="checkbox" id="water" checked> Water surfaces</label>
@@ -166,6 +174,18 @@
     <button type="button" id="setup-folders">Game folder…</button>
     <button type="button" id="setup-cancel">Not now</button>
     <button type="button" id="setup-go" class="on">Build the map</button>
+  </div>
+</dialog>
+
+<dialog id="spoil-ask" class="dlg">
+  <h2>One question first: spoilers</h2>
+  <p>This map can name every item in the game and show its picture and description.</p>
+  <p>If you would rather find things out yourself, it can keep that hidden: an item you do not have yet then shows only
+    its kind, such as "Unknown weapon", and where it is. It gets its name once your save has it or you have picked it up.</p>
+  <p class="hint">Bosses, NPCs, zones and inscriptions are named either way. You can change this at any time under View → Spoilers.</p>
+  <div class="row acts">
+    <button type="button" data-spoilers="show">Show everything</button>
+    <button type="button" data-spoilers="hide" class="on">Hide item names</button>
   </div>
 </dialog>
 

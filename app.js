@@ -58,6 +58,9 @@ if (S.v !== 2) { S.levelOn = {}; S.v = 2; }
 const found = new Set(store.get('found', []));
 const saveSettings = () => store.set('settings', S);
 const saveFound = () => store.set('found', [...found]);
+// Item names can stay hidden until you know the item (S.spoilers, see "spoilers" further down). These are the items
+// whose name was asked for by hand, kept by the item's path in the game data.
+const revealed = new Set(store.get('revealed', []));
 
 let world, md, levels = [], markers = [], byId = new Map();
 let selected = null, highlight = null; // highlight = {cat, name}
@@ -571,6 +574,7 @@ function prepareMarkers() {
       m.name = it.n;
       m.title = it.n + (pr[1] > 1 ? ` ×${pr[1]}` : '') + (m.it.length > 1 ? ` +${m.it.length - 1} more` : '');
       m.key = 'i' + pr[0];
+      m.pi = pr[0];
       if (m.by != null) m.carrier = md.enemies[m.by]; // not lying around: a one-time enemy carries it (Star Lizard loot sacks...)
     } else {
       m.cat = m.t;
@@ -579,6 +583,8 @@ function prepareMarkers() {
       m.key = m.t;
     }
     m.search = (m.title + ' ' + (m.it || []).map(i => md.items[i[0]].n).join(' ') + ' ' + (m.c || '') + ' ' + (m.note || '') + ' ' + (m.carrier?.n || '')).toLowerCase();
+    // the part of that without item names, for searching while names are hidden (see searchText)
+    m.sbase = (m.t === 'item' ? CAT[m.cat].label : m.title) + ' ' + (m.c || '') + ' ' + (m.note || '') + ' ' + (m.carrier?.n || '');
     byId.set(m.id, m);
     markers.push(m);
   }
@@ -588,6 +594,7 @@ function buildAtlas() {
   const keys = new Map();
   for (const m of markers) if (!keys.has(m.key)) keys.set(m.key, m);
   for (const k of ['loot', 'player']) keys.set(k, { cat: k }); // badges for markers that only a save file adds
+  for (const c of CATS) if (c.group === 'Items') keys.set('c:' + c.k, { cat: c.k, unknown: true }); // an item whose name is hidden shows only its kind
   const rows = Math.ceil(keys.size / ATLAS_COLS);
   atlasCanvas = document.createElement('canvas');
   atlasCanvas.width = ATLAS_COLS * CELL;
@@ -610,7 +617,7 @@ function buildAtlas() {
       g.fillStyle = c.color;
       g.font = '600 32px "Segoe UI Symbol", "Segoe UI", system-ui, sans-serif';
       g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText(c.glyph || '•', 0, 2);
+      g.fillText(m.unknown ? '?' : c.glyph || '•', 0, 2);
     }
     g.restore();
     cellFor.set(key, i++);
@@ -626,15 +633,21 @@ function buildAtlas() {
   for (const m of markers) m.cell = cellFor.get(m.key);
 }
 
-/** CSS background for a marker's badge (cut out of the atlas). */
+/**
+ * CSS that cuts a marker's badge out of the atlas. The element also takes the class "badge", which carries the atlas
+ * picture: once, in a style rule. As part of every badge's own style it made each list many megabytes of HTML.
+ */
+let _atlasCss = null;
 function badgeStyle(m, size) {
   if (!atlasCanvas || m.cell == null) return '';
-  const k = size / CELL;
-  return `background-image:url(${atlasUrl()});background-size:${atlasCanvas.width * k}px ${atlasCanvas.height * k}px;` +
-    `background-position:-${(m.cell % ATLAS_COLS) * size}px -${Math.floor(m.cell / ATLAS_COLS) * size}px;`;
+  if (!_atlasCss) {
+    _atlasCss = document.head.appendChild(document.createElement('style'));
+    _atlasCss.textContent = `.badge{background-image:url(${atlasCanvas.toDataURL('image/png')})}`;
+  }
+  const k = size / CELL, cell = cellOf(m);
+  return `background-size:${atlasCanvas.width * k}px ${atlasCanvas.height * k}px;` +
+    `background-position:-${(cell % ATLAS_COLS) * size}px -${Math.floor(cell / ATLAS_COLS) * size}px;`;
 }
-let _atlasUrl = null;
-const atlasUrl = () => _atlasUrl ??= atlasCanvas.toDataURL('image/png');
 
 const isShown = m => S.catOn[m.cat] && m.level && S.levelOn[m.level.id] && !(S.hideFound && isFound(m) && m !== selected) &&
   !(S.place && m.t === 'item' && (S.place === 'chest' ? !m.c : S.place === 'enemy' ? !m.carrier : m.df !== S.place));
@@ -644,6 +657,7 @@ const isHi = m => m === selected || m === playerM || (highlight && m.cat === hig
 let shown = [];
 
 function rebuildPoints() {
+  known = null; // whatever changed may have made an item known (a pickup found, a save loaded)
   shown = markers.filter(m => isShown(m) || isHi(m));
   const n = shown.length;
   pointsGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
@@ -662,7 +676,7 @@ function fillPoints() {
   const P = pointsGeo.attributes.position.array, C = pointsGeo.attributes.cell.array, St = pointsGeo.attributes.mstate.array;
   shown.forEach((m, i) => {
     P[i * 3] = m.pos.x; P[i * 3 + 1] = m.pos.y; P[i * 3 + 2] = m.pos.z;
-    C[i] = m.cell;
+    C[i] = cellOf(m);
     St[i] = isHi(m) ? 2 : isFound(m) ? 1 : 0;
   });
   pointsGeo.attributes.position.needsUpdate = pointsGeo.attributes.cell.needsUpdate = pointsGeo.attributes.mstate.needsUpdate = true;
@@ -714,7 +728,7 @@ function hover(x, y, slack) {
   canvas.classList.toggle('hot', !!m);
   if (!m) return hideTip();
   const tip = $('#tip');
-  tip.innerHTML = `${esc(m.title)}<small>${esc(CAT[m.cat].label)}${isFound(m) ? ' · found' : ''}</small>`;
+  tip.innerHTML = `${esc(titleOf(m))}<small>${esc(CAT[m.cat].label)}${isFound(m) ? ' · found' : ''}</small>`;
   tip.style.left = x + 'px'; tip.style.top = y + 'px';
   tip.hidden = false;
 }
@@ -780,18 +794,24 @@ function sameKind(m) {
 }
 
 function itemRow(idx, n, extra = '') {
-  const it = md.items[idx];
-  return `<li><span class="ico" style="${itemIcon(it)}"></span><span>${esc(it.n)}${n > 1 ? ` ×${n}` : ''}${extra}</span></li>`;
+  return `<li>${itemIco(idx)}<span>${itemLabel(idx)}${n > 1 ? ` ×${n}` : ''}${extra}</span></li>`;
 }
-function itemIcon(it, size = 22) {
-  return it.i >= 0 ? `background-image:url(${dataUrl('icons.png')});background-size:${md.iconCols * size}px auto;background-position:-${(it.i % md.iconCols) * size}px -${Math.floor(it.i / md.iconCols) * size}px` : '';
+/** An item's picture as an icon; a question mark while its name is hidden. */
+function itemIco(idx, size = 22, cls = 'ico') {
+  const it = md.items[idx];
+  if (!itemKnown(idx)) return `<span class="${cls} unknown">?</span>`;
+  const cut = it.i >= 0 ? `background-image:url(${dataUrl('icons.png')});background-size:${md.iconCols * size}px auto;background-position:-${(it.i % md.iconCols) * size}px -${Math.floor(it.i / md.iconCols) * size}px` : '';
+  return `<span class="${cls}" style="${cut}"></span>`;
 }
 const small = t => ` <small style="color:var(--dim)">${esc(t)}</small>`;
 
 /** Card for an item that has no pickup marker (bought, given, dropped...). */
+let cardItem = null; // the item this card is showing, null while the card is a marker's
 function showItemCard(idx) {
   select(null);
+  cardItem = idx;
   const it = md.items[idx], c = CAT[it.c] || CAT.Other, el = $('#card');
+  const named = itemKnown(idx);
   const src = it.src || [];
   const used = markers.filter(m => m.rq?.includes(idx));
   const usedRows = used.slice(0, 8).map((m, i) =>
@@ -800,19 +820,19 @@ function showItemCard(idx) {
   el.style.setProperty('--c', c.color);
   el.innerHTML = `
     <div class="top">
-      <div class="big" style="${itemIcon(it, 52)}"></div>
-      <div style="min-width:0;flex:1"><div class="kind">${esc(c.label)} · not a world pickup</div><h2>${esc(it.n)}</h2></div>
+      ${itemIco(idx, 52, 'big')}
+      <div style="min-width:0;flex:1"><div class="kind">${esc(c.label)} · not a world pickup</div><h2>${itemLabel(idx)}</h2></div>
       <button class="close" title="Close (Esc)">×</button>
     </div>
-    ${it.d ? `<p class="desc">${esc(it.d)}</p>` : ''}
+    ${named && it.d ? `<p class="desc">${esc(it.d)}</p>` : ''}
     <div class="sect">How to get it</div>
-    ${src.length ? `<ul>${src.map((s, i) => `<li><span style="flex:1">${esc(s[0])}</span>${s[1] && byId.has(s[1]) ? `<button data-go="${i}">Go</button>` : ''}</li>`).join('')}</ul>`
+    ${src.length ? `<ul>${src.map((s, i) => `<li><span style="flex:1">${esc(srcText(s, named))}</span>${s[1] && byId.has(s[1]) ? `<button data-go="${i}">Go</button>` : ''}</li>`).join('')}</ul>`
       : `<p class="hint" style="margin-top:6px">Nothing in the game data hands this item out${used.length ? ' — only the lock that uses it refers to it' : ''}. It may be unused content.</p>`}
     ${grimoire ? `<p class="hint" style="margin-top:6px">Find the Witch's Grimoire (Go above) and write the matching words in it. The game stores the accepted inscriptions only in hashed form, so this map cannot list them.</p>` : ''}
     ${used.length ? `<div class="sect">Used at</div><ul>${usedRows}</ul>` : ''}
     ${saveMatch ? `<div class="tags"><span class="tag ${saveMatch.owned.has(idx) ? 'have' : ''}">${esc(ownedText(idx))}</span></div>` : ''}`;
   el.hidden = false;
-  $('.close', el).onclick = () => { el.hidden = true; };
+  $('.close', el).onclick = () => { el.hidden = true; cardItem = null; };
   $$('[data-go]', el).forEach(b => { b.onclick = () => select(byId.get(src[+b.dataset.go][1]), { fly: true }); });
   $$('[data-use]', el).forEach(b => { b.onclick = () => select(used[+b.dataset.use], { fly: true }); });
 }
@@ -848,6 +868,7 @@ function ownedText(idx) {
 function renderCard() {
   const el = $('#card');
   const m = selected;
+  cardItem = null;
   if (!m) { el.hidden = true; return; }
   if (m === playerM) return renderPlayerCard(el);
   const c = CAT[m.cat];
@@ -877,7 +898,7 @@ function renderCard() {
     if (m.e != null && saveMatch.kills.has(m.e)) tags.push(`<span class="tag have">${saveMatch.kills.get(m.e)} defeated in total</span>`);
   }
   let body = '';
-  const desc = m.item ? m.item.d : m.d;
+  const desc = m.item ? (markerKnown(m) ? m.item.d : '') : m.d;
   if (desc) body += `<p class="desc">${esc(desc)}</p>`;
   if (m.item && m.it.length > 1 || m.t === 'chest' && m.it?.length)
     body += `<div class="sect">Contents</div><ul>${m.it.map(([i, n]) => itemRow(i, n)).join('')}</ul>`;
@@ -906,10 +927,10 @@ function renderCard() {
   el.style.setProperty('--c', c.color);
   el.innerHTML = `
     <div class="top">
-      <div class="big" style="${badgeStyle(m, 52)}border:none"></div>
+      <div class="big badge" style="${badgeStyle(m, 52)}border:none"></div>
       <div style="min-width:0;flex:1">
         <div class="kind">${esc(c.label)}</div>
-        <h2>${esc(m.title)}</h2>
+        <h2>${markerKnown(m) ? esc(m.title) : itemLabel(m.pi) + esc(m.title.slice(m.name.length))}</h2>
       </div>
       <button class="close" title="Close (Esc)">×</button>
     </div>
@@ -937,6 +958,7 @@ function toggleFound(m) {
   if (m === playerM || saveMatch?.found.has(m.id)) return; // the save file decides those
   found.has(m.id) ? found.delete(m.id) : found.add(m.id);
   saveFound();
+  known = null;
   renderCard();
   rebuildPoints();
   refreshCounts();
@@ -949,7 +971,7 @@ function renderPlayerCard(el) {
   el.style.setProperty('--c', c.color);
   el.innerHTML = `
     <div class="top">
-      <div class="big" style="${badgeStyle(m, 52)}border:none"></div>
+      <div class="big badge" style="${badgeStyle(m, 52)}border:none"></div>
       <div style="min-width:0;flex:1"><div class="kind">${esc(c.label)}</div><h2>${esc(saveLabel())}</h2></div>
       <button class="close" title="Close (Esc)">×</button>
     </div>
@@ -972,6 +994,59 @@ function renderPlayerCard(el) {
 function setHighlight(h) {
   highlight = h;
   rebuildPoints();
+}
+
+// ------------------------------------------------------------------ spoilers: item names shown or hidden
+// S.spoilers: true = every item is named. false = an item is named once you know it: your save has or had it, one of
+// its pickups is found, or you asked for its name on a card. Until then it shows only its kind ("Unknown weapon"),
+// without picture or description. undefined = not asked yet (the page asks on its first start); names stay hidden.
+
+const ITEM_KIND = { KeyItems: 'key item', Weapons: 'weapon', Accessories: 'accessory', Upgrades: 'upgrade', Treasure: 'treasure', Artifacts: 'artifact', Consumables: 'consumable' };
+let known = null; // item indices that may be named while names are hidden; worked out again after every change
+const namesHidden = () => S.spoilers !== true;
+
+function knownItems() {
+  if (known) return known;
+  known = new Set();
+  md.items.forEach((it, i) => { if (it.c === 'Coins' || revealed.has(it.p)) known.add(i); }); // a coin is no secret
+  if (saveMatch) for (const i of saveMatch.owned.keys()) known.add(i);
+  for (const m of markers) if (m.it && (m.t === 'item' || m.t === 'chest') && isFound(m)) for (const [i] of m.it) known.add(i);
+  return known;
+}
+const itemKnown = idx => !namesHidden() || knownItems().has(idx);
+const itemName = idx => itemKnown(idx) ? md.items[idx].n : 'Unknown ' + (ITEM_KIND[md.items[idx].c] || 'item');
+/** An item's name as HTML: while it is hidden, its kind and a button that names this one item. */
+const itemLabel = idx => itemKnown(idx) ? esc(md.items[idx].n)
+  : `<i class="unk">${esc(itemName(idx))}</i> <button class="show-name" data-reveal="${idx}" title="Show the name, picture and description of this one item">show</button>`;
+/** False for a pickup (or loot) marker whose item is not to be named yet. */
+const markerKnown = m => !m.item || m.pi == null || itemKnown(m.pi);
+const titleOf = m => markerKnown(m) ? m.title : itemName(m.pi) + m.title.slice(m.name.length);
+/** The badge a marker shows on the map and in lists: the item's picture, or a "?" in its category's colour. */
+const cellOf = m => markerKnown(m) ? m.cell : cellFor.get('c:' + m.cat) ?? m.cell;
+/** True for a source line that would give the item away: the weapon it evolves from, or its own description. */
+const SRC_TELLS = s => s[2] === 'evolve' || /^Item description: /.test(s[0]);
+const srcText = (s, named) => named || !SRC_TELLS(s) ? s[0] : s[2] === 'evolve' ? 'Evolves from another weapon' : 'Hinted at in its own description';
+/** What the search box looks through for a marker: while names are hidden, only the names of items you know. */
+function searchText(m) {
+  if (!namesHidden()) return m.search;
+  return (m.sbase + ' ' + (m.it || []).filter(([i]) => itemKnown(i)).map(([i]) => md.items[i].n).join(' ')).toLowerCase();
+}
+
+function revealItem(idx) {
+  revealed.add(md.items[idx].p);
+  store.set('revealed', [...revealed]);
+  namesChanged();
+}
+
+/** Names were switched on or off, or an item became known: everything that shows a name is drawn again. */
+function namesChanged() {
+  known = null;
+  syncViewControls();
+  rebuildPoints();
+  renderCats();
+  if (cardItem != null) showItemCard(cardItem); else renderCard();
+  if (!$('#results').hidden) runSearch();
+  hideTip();
 }
 
 // ------------------------------------------------------------------ guide panel
@@ -1001,15 +1076,14 @@ function renderCats() {
         <input type="checkbox" ${S.catOn[c.k] ? 'checked' : ''} style="accent-color:${c.color}">
         <span class="sw" style="--c:${c.color}">${c.glyph ? esc(c.glyph) : ''}</span>
         <span class="name">${esc(c.label)}</span>
-        <span class="count">${st.done} / ${st.total}</span>
-        <span class="chev" title="List">▸</span>
+        <button class="chev" type="button" title="Show or hide the list"><span class="count">${st.done} / ${st.total}</span><i>▸</i></button>
       </div><div class="sub"></div>`;
     const head = $('.head', el);
     head.addEventListener('click', e => {
-      if (e.target.classList.contains('chev')) {
+      if (e.target.closest('.chev')) {
         openCats.has(c.k) ? openCats.delete(c.k) : openCats.add(c.k);
         el.classList.toggle('open');
-        if (openCats.has(c.k)) fillSub(el, c.k);
+        if (openCats.has(c.k)) fillSub(el, c.k); else $('.sub', el).innerHTML = '';
         return;
       }
       S.catOn[c.k] = !S.catOn[c.k];
@@ -1029,7 +1103,7 @@ function renderCats() {
     const have = saveMatch ? extra.filter(o => saveMatch.owned.has(o.idx)).length : 0;
     el.innerHTML = `<div class="head" title="Items that are bought, given by NPCs, dropped by enemies or awarded by scripts">
         <span class="sw" style="--c:#8a93a3">…</span><span class="name">Shops, rewards &amp; drops</span>
-        <span class="count">${saveMatch ? `${have} / ` : ''}${extra.length}</span><span class="chev">▸</span></div><div class="sub"></div>`;
+        <button class="chev" type="button" title="Show or hide the list"><span class="count">${saveMatch ? `${have} / ` : ''}${extra.length}</span><i>▸</i></button></div><div class="sub"></div>`;
     const fill = () => {
       const groups = new Map(SRC_KINDS.map(([k]) => [k, []]));
       for (const o of extra) {
@@ -1077,9 +1151,12 @@ function shortSrc(s) {
 function extraHtml(o) {
   const s = o.it.src?.[0];
   const have = saveMatch?.owned.get(o.idx);
-  return `<div class="entry${have != null ? ' done' : ''}" data-item="${o.idx}" title="${esc((s ? o.it.src.map(x => x[0]).join('\n') : 'No source found in the game data') + (saveMatch ? '\n' + ownedText(o.idx) : ''))}">
-      <span class="ico" style="${itemIcon(o.it)}"></span><span class="label">${esc(o.it.n)}</span>
-      <span class="where">${esc(s ? shortSrc(s) : '—')}</span>${have != null ? `<span class="have">✓${have > 1 ? ' ×' + have : ''}</span>` : ''}</div>`;
+  const named = itemKnown(o.idx);
+  const tip = !named ? 'Its name is hidden. Click for how to get it.'
+    : (s ? o.it.src.map(x => x[0]).join('\n') : 'No source found in the game data') + (saveMatch ? '\n' + ownedText(o.idx) : '');
+  return `<div class="entry${have != null ? ' done' : ''}" data-item="${o.idx}" title="${esc(tip)}">
+      ${itemIco(o.idx)}<span class="label">${named ? esc(o.it.n) : `<i class="unk">${esc(itemName(o.idx))}</i>`}</span>
+      <span class="where">${esc(!s ? '—' : named || !SRC_TELLS(s) ? shortSrc(s) : s[2] === 'evolve' ? 'evolution' : '—')}</span>${have != null ? `<span class="have">✓${have > 1 ? ' ×' + have : ''}</span>` : ''}</div>`;
 }
 
 function groupByName(list) {
@@ -1098,8 +1175,8 @@ function entryHtml(g, cat) {
   const lv = new Set(g.list.map(m => m.l));
   const where = g.list.length === 1 ? levelName(g.list[0].level) : `${lv.size} zone${lv.size > 1 ? 's' : ''}`;
   return `<div class="entry${all ? ' done' : ''}" data-cat="${esc(cat)}" data-name="${esc(g.name)}" title="Click to fly to the next one">
-      <span class="ico" style="${badgeStyle(g.m, 22)}"></span>
-      <span class="label">${esc(g.name)}</span>
+      <span class="ico badge" style="${badgeStyle(g.m, 22)}"></span>
+      <span class="label">${markerKnown(g.m) ? esc(g.name) : `<i class="unk">${esc(itemName(g.m.pi))}</i>`}</span>
       <span class="where">${esc(where)}</span>
       <span class="n">${g.list.length > 1 || g.done ? `${g.done}/${g.list.length}` : ''}</span>
     </div>`;
@@ -1109,7 +1186,9 @@ function fillSub(el, k) {
   let groups = groupByName(catStats(k).list);
   if (S.hideFound) groups = groups.filter(g => g.done < g.list.length);
   const sortKey = g => g.m.item ? g.m.item.s : 0;
-  groups.sort((a, b) => (sortKey(a) - sortKey(b)) || a.name.localeCompare(b.name));
+  // items whose name is hidden come after the named ones, by zone: their place in the alphabet would be a hint
+  const hid = g => !markerKnown(g.m), zone = g => levelName(g.list[0].level);
+  groups.sort((a, b) => (sortKey(a) - sortKey(b)) || (hid(a) - hid(b)) || (hid(a) ? zone(a).localeCompare(zone(b)) : 0) || a.name.localeCompare(b.name));
   $('.sub', el).innerHTML = groups.map(g => entryHtml(g, k)).join('');
 }
 
@@ -1157,7 +1236,7 @@ function runSearch() {
   const res = $('#results'), cats = $('#cats');
   if (!q) { res.hidden = true; cats.hidden = false; return; }
   const terms = q.split(/\s+/);
-  const hits = markers.filter(m => terms.every(t => m.search.includes(t)));
+  const hits = markers.filter(m => { const text = searchText(m); return terms.every(t => text.includes(t)); });
   const groups = new Map();
   for (const m of hits) {
     const key = m.cat + '|' + m.name;
@@ -1167,7 +1246,7 @@ function runSearch() {
     if (isFound(m)) g.done++;
   }
   const arr = [...groups.values()].sort((a, b) => CATS.indexOf(CAT[a.cat]) - CATS.indexOf(CAT[b.cat]) || a.name.localeCompare(b.name)).slice(0, 150);
-  const extra = unplacedItems().filter(o => terms.every(t => o.it.n.toLowerCase().includes(t))).slice(0, 40);
+  const extra = unplacedItems().filter(o => itemKnown(o.idx) && terms.every(t => o.it.n.toLowerCase().includes(t))).slice(0, 40);
   res.innerHTML = arr.length || extra.length ? arr.map(g => entryHtml(g, g.cat)).join('') + extra.map(extraHtml).join('')
     : '<p class="hint" style="padding:8px">Nothing found.</p>';
   res.hidden = false; cats.hidden = true;
@@ -1280,6 +1359,8 @@ function syncViewControls() {
   $('#fov').value = S.fov; $('#fov-out').textContent = `${S.fov}°`;
   $('#hide-found').checked = S.hideFound;
   $('#place').value = S.place || '';
+  $('#spoilers').checked = S.spoilers === true;
+  $('#spoil-forget').hidden = !revealed.size || S.spoilers === true;
 }
 
 function wireUi() {
@@ -1326,14 +1407,25 @@ function wireUi() {
     try {
       const j = JSON.parse(await f.text());
       for (const id of j.found || []) if (byId.has(id)) found.add(id);
+      known = null;
       saveFound(); refreshCounts(); rebuildPoints(); renderCard();
     } catch { alert('That file is not a progress export.'); }
     e.target.value = '';
   };
   $('#reset').onclick = () => {
     if (!found.size || !confirm(`Clear all ${found.size} found marks?`)) return;
-    found.clear(); saveFound(); refreshCounts(); rebuildPoints(); renderCard();
+    found.clear(); known = null; saveFound(); refreshCounts(); rebuildPoints(); renderCard();
   };
+  bind('#spoilers', 'spoilers', namesChanged);
+  $('#spoil-forget').onclick = () => { revealed.clear(); store.set('revealed', []); namesChanged(); };
+  $('#spoil-ask').addEventListener('cancel', e => e.preventDefault()); // it wants an answer, not Escape
+  $$('#spoil-ask [data-spoilers]').forEach(b => {
+    b.onclick = () => { S.spoilers = b.dataset.spoilers === 'show'; saveSettings(); $('#spoil-ask').close(); syncViewControls(); namesChanged(); };
+  });
+  $('#card').addEventListener('click', e => {
+    const b = e.target.closest('[data-reveal]');
+    if (b) revealItem(+b.dataset.reveal);
+  });
   if (!S.panel) { $('#side').classList.add('closed'); $('#expand').hidden = false; }
 }
 
@@ -1371,15 +1463,17 @@ function rebuildSaveMarkers() {
       const m = { id: 'drop/' + d.id, t: 'loot', cat: 'loot', it, pos: new THREE.Vector3(...d.pos), note: 'Dropped earlier and not picked up' };
       const pr = primaryItem(m);
       m.item = md.items[pr[0]];
+      m.pi = pr[0];
       m.name = m.item.n;
       m.title = m.name + (pr[1] > 1 ? ` ×${pr[1]}` : '');
       m.key = cellFor.has('i' + pr[0]) ? 'i' + pr[0] : 'loot';
       m.level = nearestLevel(m.pos);
       m.search = (m.title + ' loot drop').toLowerCase();
+      m.sbase = 'loot drop';
       saveMarkers.push(m);
     }
     if (save.pos) {
-      playerM = { id: '@player', t: 'player', cat: 'player', name: 'You', title: 'You (where you last saved)', key: 'player', pos: new THREE.Vector3(...save.pos), search: 'you player character' };
+      playerM = { id: '@player', t: 'player', cat: 'player', name: 'You', title: 'You (where you last saved)', key: 'player', pos: new THREE.Vector3(...save.pos), search: 'you player character', sbase: 'you player character' };
       playerM.level = nearestLevel(playerM.pos);
       saveMarkers.push(playerM);
     }
@@ -1398,6 +1492,7 @@ function rebuildSaveMarkers() {
 }
 
 function afterSaveChange() {
+  known = null;
   renderSaveInfo();
   renderSaveSelect();
   renderCats();
@@ -1985,6 +2080,7 @@ async function main() {
   requestAnimationFrame(frame);
   initSaves();
   renderProgram();
+  if (S.spoilers == null) $('#spoil-ask').showModal(); // first start: item names shown or hidden?
 
   // debugging hooks
   window.qd = {

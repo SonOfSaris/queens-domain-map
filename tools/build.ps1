@@ -172,7 +172,7 @@ Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'release\README.txt') -Destinati
 Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination (Join-Path $pack 'LICENSE.txt')
 [IO.File]::WriteAllText((Join-Path $pack 'THIRD-PARTY-NOTICES.txt'), $notices.ToString(), (New-Object Text.UTF8Encoding $false))
 $zip = Join-Path $Out "$name-$version-win-x64.zip"
-if (Test-Path -LiteralPath $zip) { Remove-Item -LiteralPath $zip -Force }
+Get-ChildItem -LiteralPath $Out -Filter "$name-*-win-x64.zip" -File | Remove-Item -Force      # this and earlier versions
 Compress-Archive -Path $pack -DestinationPath $zip -CompressionLevel Optimal
 # the build's intermediate files are several times the size of the result: gone again
 foreach ($d in $stage, (Join-Path $PSScriptRoot 'Exporter\obj'), (Join-Path $PSScriptRoot 'Exporter\bin')) {
