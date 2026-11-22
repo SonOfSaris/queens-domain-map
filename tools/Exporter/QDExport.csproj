@@ -1,0 +1,59 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    One program, two ways to build it:
+      dotnet build                    QDExport.exe, a console program that needs the .NET 10 runtime (for working on it)
+      dotnet publish -p:Dist=true     QueensDomainMap.exe, a single file with everything in it (what players download)
+    tools\build.ps1 does the second one and fetches what it needs.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <CUE4ParseDir Condition="'$(CUE4ParseDir)' == ''">..\_deps\CUE4Parse</CUE4ParseDir>
+    <WebDir Condition="'$(WebDir)' == ''">..\..</WebDir>
+    <ServerGarbageCollection>false</ServerGarbageCollection>
+    <NoWarn>$(NoWarn);CS0618;CS8632;CA1416</NoWarn>
+    <Version>1.0.0</Version>
+    <Product>Queen's Domain Map</Product>
+    <Description>Unofficial interactive 3D map for Queen's Domain, built from your own copy of the game</Description>
+    <Company></Company>
+    <Copyright></Copyright>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Dist)' == 'true'">
+    <AssemblyName>QueensDomainMap</AssemblyName>
+    <OutputType>WinExe</OutputType>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="$(CUE4ParseDir)\CUE4Parse\CUE4Parse.csproj" />
+    <ProjectReference Include="$(CUE4ParseDir)\CUE4Parse-Conversion\CUE4Parse-Conversion.csproj" />
+  </ItemGroup>
+
+  <!-- The page travels inside the program; App.cs serves these as /index.html, /app.js, ... -->
+  <ItemGroup>
+    <EmbeddedResource Include="$(WebDir)\index.html" LogicalName="web/index.html" />
+    <EmbeddedResource Include="$(WebDir)\app.js" LogicalName="web/app.js" />
+    <EmbeddedResource Include="$(WebDir)\style.css" LogicalName="web/style.css" />
+    <EmbeddedResource Include="$(WebDir)\gvas.js" LogicalName="web/gvas.js" />
+    <EmbeddedResource Include="$(WebDir)\save.js" LogicalName="web/save.js" />
+    <EmbeddedResource Include="$(WebDir)\stats.html" LogicalName="web/stats.html" />
+    <EmbeddedResource Include="$(WebDir)\lib\three.module.min.js" LogicalName="web/lib/three.module.min.js" />
+    <EmbeddedResource Include="app.ico" LogicalName="web/favicon.ico" />
+  </ItemGroup>
+
+</Project>

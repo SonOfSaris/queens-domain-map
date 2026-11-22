@@ -1,0 +1,12 @@
+# Made by the program when it runs. The data folders hold content from your copy of the game: never commit them.
+/data/
+/data.new/
+/data.old/
+/folders.json
+
+# Build output and what the build downloads
+/dist/
+/tools/_deps/
+/tools/Exporter/bin/
+/tools/Exporter/obj/
+/QueensDomainMap.exe

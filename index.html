@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Queen's Domain — World Map</title>
+<link rel="icon" href="favicon.ico">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<aside id="side">
+  <header>
+    <h1>Queen's Domain <span>World Map</span></h1>
+    <button id="collapse" title="Hide panel (H)">⟨</button>
+  </header>
+  <nav id="tabs">
+    <button data-tab="guide" class="on">Guide</button>
+    <button data-tab="zones">Zones</button>
+    <button data-tab="view">View</button>
+  </nav>
+
+  <section id="tab-guide" class="tab on">
+    <div id="savebar">
+      <div class="row">
+        <label class="sel">Save:
+          <select id="save-slot" title="Load one of the game's save slots: everything you already have is ticked off"></select>
+        </label>
+        <button id="save-you" title="Fly to where your character last saved (P)" hidden>◉ You</button>
+        <input type="file" id="save-file" accept=".sav" hidden>
+      </div>
+      <p class="hint" id="save-info" hidden></p>
+    </div>
+    <p class="hint" id="stale" hidden><span></span> <button id="stale-go">Rebuild…</button> <button id="stale-no" title="Keep this map for now">Later</button></p>
+    <div class="row">
+      <input id="search" type="search" placeholder="Search items, enemies, places…" autocomplete="off">
+    </div>
+    <div id="progress" class="progress"><div class="bar"><i></i></div><span></span></div>
+    <div class="row tools">
+      <button id="cats-all">All</button>
+      <button id="cats-none">None</button>
+      <button id="cats-collect" title="Show only item pickups">Items only</button>
+      <label class="chk"><input type="checkbox" id="hide-found"> Hide found</label>
+    </div>
+    <div class="row">
+      <label class="sel">Pickups:
+        <select id="place" title="Filter item pickups by how the game's designers tagged their placement">
+          <option value="">all placements</option>
+          <option value="Hidden">tagged "hidden"</option>
+          <option value="OutOfView">tagged "out of view"</option>
+          <option value="AccessibleLater">tagged "accessible later"</option>
+          <option value="chest">inside a chest, crate or barrel</option>
+          <option value="enemy">carried by an enemy</option>
+        </select>
+      </label>
+    </div>
+    <div id="results" class="list" hidden></div>
+    <div id="cats" class="list"></div>
+  </section>
+
+  <section id="tab-zones" class="tab">
+    <div class="row tools">
+      <button id="zones-all">All</button>
+      <button id="zones-none">None</button>
+      <span class="hint">Click a name to fly there · ◎ = show only that zone</span>
+    </div>
+    <div id="zones" class="list"></div>
+  </section>
+
+  <section id="tab-view" class="tab">
+    <h3>Cutaway</h3>
+    <p class="hint">Hides everything above a height so you can look into rooms from above.</p>
+    <div class="seg" id="cut-mode">
+      <button data-v="off" class="on">Off</button>
+      <button data-v="auto">Follow pivot</button>
+      <button data-v="manual">Fixed height</button>
+    </div>
+    <label class="slider" id="cut-offset-row">Height above pivot <output id="cut-offset-out"></output>
+      <input type="range" id="cut-offset" min="0.5" max="30" step="0.5" value="3"></label>
+    <label class="slider" id="cut-height-row">Cut height <output id="cut-height-out"></output>
+      <input type="range" id="cut-height" min="-600" max="400" step="1" value="0"></label>
+
+    <h3>Markers</h3>
+    <label class="chk"><input type="checkbox" id="xray" checked> Show markers through walls <kbd>X</kbd></label>
+    <label class="slider">Visible range <output id="range-out"></output>
+      <input type="range" id="range" min="20" max="1500" step="10" value="300"></label>
+    <label class="slider">Icon size <output id="size-out"></output>
+      <input type="range" id="size" min="0.5" max="2.5" step="0.1" value="1"></label>
+
+    <h3>Scene</h3>
+    <label class="chk"><input type="checkbox" id="textures" checked> Textures</label>
+    <label class="chk"><input type="checkbox" id="water" checked> Water surfaces</label>
+    <label class="chk"><input type="checkbox" id="fog"> Distance haze</label>
+    <label class="slider">Field of view <output id="fov-out"></output>
+      <input type="range" id="fov" min="30" max="100" step="1" value="55"></label>
+
+    <h3>Progress</h3>
+    <div class="row tools">
+      <button id="export">Export</button>
+      <button id="import">Import</button>
+      <button id="reset" class="danger">Reset</button>
+      <input type="file" id="import-file" accept="application/json" hidden>
+    </div>
+
+    <h3>Folders</h3>
+    <p class="hint">Where the game is installed and where it keeps your saves.</p>
+    <div class="row tools">
+      <button id="folders-open">Game and save folders…</button>
+    </div>
+
+    <div id="program" hidden>
+      <h3>Map program</h3>
+      <p class="hint" id="program-info"></p>
+      <div class="row tools">
+        <button id="rebuild" title="Read the game's files again, for example after a game update">Rebuild the map…</button>
+        <button id="quit" class="danger" title="Stop the map program. Start QueensDomainMap.exe to use the map again.">Quit</button>
+      </div>
+    </div>
+
+    <h3>Controls</h3>
+    <table class="keys">
+      <tr><td>Left drag</td><td>Rotate</td></tr>
+      <tr><td>Right drag / Shift+drag</td><td>Pan</td></tr>
+      <tr><td>Wheel</td><td>Zoom</td></tr>
+      <tr><td>W A S D, Q E</td><td>Move, down / up (Shift = fast)</td></tr>
+      <tr><td>Double-click</td><td>Set pivot on a surface</td></tr>
+      <tr><td>Tab</td><td>Orbit view ⇄ first person at the dot</td></tr>
+      <tr><td>F / M</td><td>Focus / mark selected as found</td></tr>
+      <tr><td>P</td><td>Fly to your character (save loaded)</td></tr>
+      <tr><td>X / C / H</td><td>X-ray markers / cutaway / hide panel</td></tr>
+    </table>
+
+    <h3>Controller</h3>
+    <p class="hint" id="pad-status">Press any button on your controller to activate it.</p>
+    <table class="keys">
+      <tr><td>Left stick</td><td>Move (click = fast)</td></tr>
+      <tr><td>Right stick</td><td>Look / rotate</td></tr>
+      <tr><td>LB / RB</td><td>Down / up</td></tr>
+      <tr><td>LT / RT</td><td>Zoom out / in · slower / faster in first person</td></tr>
+      <tr><td>A / B</td><td>Select the marker under the crosshair / deselect</td></tr>
+      <tr><td>X / Y</td><td>Mark found / orbit ⇄ first person</td></tr>
+      <tr><td>D-pad ◀ ▶</td><td>Previous / next marker of the same kind</td></tr>
+      <tr><td>D-pad ▲ ▼</td><td>Fly to your character / cutaway</td></tr>
+      <tr><td>Start / Back</td><td>Hide panel / X-ray markers</td></tr>
+    </table>
+  </section>
+</aside>
+
+<button id="expand" title="Show panel (H)" hidden>⟩</button>
+
+<div id="card" hidden></div>
+<div id="tip" hidden></div>
+<div id="ring" hidden></div>
+<div id="reticle" hidden></div>
+<div id="youlabel" hidden title="Fly to your character"></div>
+
+<dialog id="setup" class="dlg">
+  <h2 id="setup-title"></h2>
+  <p id="setup-text"></p>
+  <p class="hint state" id="setup-game"></p>
+  <div class="progress" id="setup-progress" hidden><div class="bar"><i></i></div><span></span></div>
+  <p class="hint state err" id="setup-error" hidden></p>
+  <pre id="setup-log" hidden></pre>
+  <div class="row acts">
+    <button type="button" id="setup-folders">Game folder…</button>
+    <button type="button" id="setup-cancel">Not now</button>
+    <button type="button" id="setup-go" class="on">Build the map</button>
+  </div>
+</dialog>
+
+<dialog id="folders" class="dlg">
+  <form method="dialog">
+    <h2>Game and save folders</h2>
+    <p class="hint">Tell the map where things are when it does not find them by itself. An empty field means "look by itself".</p>
+    <p class="hint state warn" id="fold-note" hidden></p>
+    <label for="fold-game">Game folder <small>— the one with QueensDomain.exe</small></label>
+    <div class="row">
+      <input id="fold-game" type="text" spellcheck="false" autocomplete="off" placeholder="look by itself">
+      <button type="button" data-browse="game">Browse…</button>
+    </div>
+    <p class="hint state" id="fold-game-state"></p>
+    <label for="fold-saves">Save folder <small>— the one with World0.sav, or a folder above it</small></label>
+    <div class="row">
+      <input id="fold-saves" type="text" spellcheck="false" autocomplete="off" placeholder="look by itself">
+      <button type="button" data-browse="saves">Browse…</button>
+    </div>
+    <p class="hint state" id="fold-saves-state"></p>
+    <div class="row acts">
+      <button type="button" id="fold-cancel">Cancel</button>
+      <button type="submit" id="fold-save" class="on">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<div id="hud">
+  <div id="pad" hidden title="Controller connected — see View → Controller for the buttons">🎮</div>
+  <div id="mode" title="Tab (or Y on a controller): switch between the orbit view and first person at the dot">Orbit view</div>
+  <div id="coords"></div>
+  <div id="load"><div class="bar"><i></i></div><span></span></div>
+</div>
+
+<script type="module" src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,453 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Queen's Domain Gear Stats</title>
+<style>
+:root {
+  --bg: #12151b; --panel: #181c24; --panel-2: #1f2430; --line: #2b323f; --text: #e6e9ef; --dim: #98a2b3;
+  --accent: #f2c14e; --good: #4cc38a; --bad: #e5484d; --grim: #c58bff; --bar: #3d6fd8; --bar-bg: #262c38;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #f6f7f9; --panel: #ffffff; --panel-2: #eef0f4; --line: #d9dde5; --text: #1b1f27; --dim: #5d6675;
+    --accent: #a8740a; --good: #17804f; --bad: #c4272d; --grim: #7d3fc4; --bar: #3d6fd8; --bar-bg: #e3e7ee; color-scheme: light;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, "Segoe UI", Roboto, sans-serif; }
+header { padding: 20px 16px 8px; max-width: 1400px; margin: 0 auto; }
+h1 { margin: 0 0 4px; font-size: 22px; }
+h1 span { color: var(--accent); font-weight: 500; }
+.lede { color: var(--dim); margin: 0; max-width: 860px; }
+main { max-width: 1400px; margin: 0 auto; padding: 0 16px 40px; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; margin: 14px 0 10px; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tabs button, .seg button { font: inherit; color: var(--text); background: var(--panel-2); border: 1px solid var(--line); border-radius: 7px; padding: 6px 12px; cursor: pointer; }
+.tabs button.on, .seg button.on { background: var(--accent); border-color: var(--accent); color: #1a1405; font-weight: 600; }
+.seg { display: inline-flex; }
+.seg button { border-radius: 0; margin-left: -1px; padding: 5px 10px; font-size: 13px; }
+.seg button:first-child { border-radius: 7px 0 0 7px; margin-left: 0; }
+.seg button:last-child { border-radius: 0 7px 7px 0; }
+label.ctl { display: inline-flex; align-items: center; gap: 6px; color: var(--dim); font-size: 13px; }
+input[type=search], input[type=number] { font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 5px 9px; }
+input[type=search] { width: 200px; }
+input[type=number] { width: 70px; }
+.wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 6px 9px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: top; }
+th { position: sticky; top: 0; background: var(--panel-2); font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; font-size: 12px; }
+th.num, td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+th .arrow { color: var(--accent); margin-left: 3px; }
+th[title] { text-decoration: underline dotted var(--dim); text-underline-offset: 3px; }
+tr:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+td.name { font-weight: 600; min-width: 170px; }
+td.name small { display: block; font-weight: 400; color: var(--dim); font-size: 11.5px; }
+.badge { display: inline-block; font-size: 10.5px; font-weight: 700; border-radius: 10px; padding: 0 6px; margin-left: 5px; vertical-align: 1px; }
+.badge.g { background: color-mix(in srgb, var(--grim) 22%, transparent); color: var(--grim); }
+.badge.top { background: color-mix(in srgb, var(--good) 22%, transparent); color: var(--good); }
+.badge.low { background: color-mix(in srgb, var(--bad) 20%, transparent); color: var(--bad); }
+.badge.x { background: var(--panel-2); color: var(--dim); }
+td.rank { color: var(--dim); width: 34px; }
+td.spec { color: var(--dim); font-size: 12px; min-width: 220px; }
+td.src { color: var(--dim); font-size: 12px; min-width: 150px; max-width: 260px; }
+.metric { display: flex; align-items: center; gap: 8px; justify-content: flex-end; }
+.bar { width: 70px; height: 6px; background: var(--bar-bg); border-radius: 3px; overflow: hidden; flex: none; }
+.bar i { display: block; height: 100%; background: var(--bar); }
+.dash { color: var(--dim); }
+details.how { margin: 16px 0 0; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; }
+details.how summary { cursor: pointer; font-weight: 600; }
+details.how p, details.how li { color: var(--dim); max-width: 900px; }
+details.how b { color: var(--text); }
+.note { color: var(--dim); font-size: 12.5px; margin: 8px 0 0; }
+ul.fx { margin: 0; padding-left: 16px; }
+ul.fx li.neg { color: var(--bad); }
+@media (max-width: 640px) { input[type=search] { width: 100%; } .controls > * { flex: 1 1 auto; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Queen's Domain <span>gear stats</span></h1>
+  <p class="lede">Every weapon and accessory in the game, read from the game files (14 Nov 2026 build), including the 38 Witch's Grimoire items
+  (purple <span class="badge g">G</span> tags). Click a column heading to sort, hover a name for its in-game description. Numbers are damage you deal before enemy resistances.</p>
+</header>
+<main>
+  <div class="controls">
+    <div class="tabs" id="tabs">
+      <button data-tab="melee" class="on">Melee weapons</button>
+      <button data-tab="gun">Guns</button>
+      <button data-tab="throwing">Throwing weapons</button>
+      <button data-tab="acc">Accessories</button>
+    </div>
+    <input type="search" id="q" placeholder="Search…" aria-label="Search">
+    <div class="seg" id="src" role="group" aria-label="Source">
+      <button data-v="all" class="on">All</button><button data-v="grimoire">Grimoire</button><button data-v="base">Base game</button>
+    </div>
+  </div>
+  <div class="controls" id="wctl">
+    <div class="seg" id="lvl" role="group" aria-label="Weapon level">
+      <button data-v="1" class="on">Weapon level 1</button><button data-v="max">Max weapon level</button><button data-v="up">Upgraded</button>
+    </div>
+    <label class="ctl">Player level <input type="number" id="plv" min="1" max="200" value="1"></label>
+    <label class="ctl"><input type="checkbox" id="special"> Show post-game reward</label>
+  </div>
+  <div class="wrap"><table id="t"></table></div>
+  <p class="note" id="note"></p>
+
+  <details class="how">
+    <summary>How the numbers work</summary>
+    <ul>
+      <li><b>Your attack power</b> = 10 + 0.75 per player level + 0.75 per Meat upgrade + flat "+damage" bonuses, then multiplied by damage-multiplier gear (Brutal Amulet ×1.25 and so on). Every weapon multiplies this.</li>
+      <li><b>Light hit</b> = attack power × the weapon's light-attack power. Melee weapons work like King's Field: each swing empties a <b>power meter</b> that refills over the weapon's <b>meter time</b>, and a swing deals its power in proportion to how full the meter was. So <b>damage per second</b> = light hit ÷ meter time, whether you wait for a full meter or swing early. Three weapons (Explorer's Cudgel, Plasma Spear, Plasma Sword) keep 25% power on an empty meter, so spamming them does a bit better.</li>
+      <li><b>Charged hit</b>: holding a light attack to charge it multiplies it by 1.333.</li>
+      <li><b>Alt attack</b> is the weapon's second attack (right button). Some need ability charges, built up by hitting or over time.</li>
+      <li><b>Weapon level</b>: each level adds +3% power. At the cap the bonus jumps to the cap itself, so a level-10 weapon hits ×1.30 and a level-25 weapon ×1.75. Every Grimoire weapon caps at 25; most others at 10. <b>Upgraded</b> (the upgrade machine) replaces this with a fixed value and the level bonus no longer applies; "—" means the weapon cannot be upgraded.</li>
+      <li><b>Guns</b> fire at their rate per minute and use energy cells; <b>throwing weapons</b> recharge over their cooldown. Their "per second" is hit × shots per second, or hit ÷ cooldown.</li>
+      <li><b>Damage types</b> matter: an enemy weak to a type takes ×1.25, one that resists it ×0.5. "Absolute" damage is not resisted.</li>
+      <li>Not modelled: combo and multi-hit animations, projectiles from alt attacks, status effects and the individual swing speed of each moveset.</li>
+    </ul>
+  </details>
+</main>
+<script type="module">
+// ---- gear data. Nothing from the game is kept in this page: the map program writes data\stats-src.json (the game's
+// stat assets) and data\markers.json (names, where to get things) when it builds the map, and the tables below are
+// worked out from those two files each time the page opens.
+
+// Native defaults of UFS_WeaponStats: a stats asset only stores the fields that differ from these, and the defaults live in
+// the game's program. Read from the class constructor in QueensDomain-Win64-Shipping.exe (14 Nov 2026 build; field offsets
+// from the reflection tables, then the immediate stores to those offsets). Fields the constructor leaves alone are zero.
+// Re-check them if a game update changes weapon balance across the board.
+const DEFAULTS = {
+  PrimaryAttackPower: 1, PrimaryAttackPower_Upgraded: 1, SecondaryAttackPower: 1, SecondaryAttackPower_Upgraded: 1.1,
+  PrimaryResourceGenMult: 1, SecondaryResourceGenMult: 1, PrimaryAttackForce: 1, SecondaryAttackForce: 1,
+  GunFireRate: 60, AttackAnimSpeed: 1, PrimaryEnergyConsumption: 0, SecondaryEnergyConsumption: 0, PowerMeterTime: 3,
+  PrimaryPowerMeterMinStrength: 0, PrimaryPowerMeterMaxStrength: 1, SecondaryPowerMeterMinStrength: 0, SecondaryPowerMeterMaxStrength: 1,
+  UpgradeUnlockIndex: 0, MaxCharges: 0, AbilityPointsPerCharge: 10, XPPerWeaponLevelMult: 1, MaxWeaponLevel: 10,
+  AttackPowerIncreasePerLevel: 0.03, PowerMeterTimeDecreasePerLevel: 0, ChargeViaResourceGen: false, ChargeOverTime: false,
+  WeaponRange: '', WeaponWidth: '', DamageTypes: [], DamageTypeDisplay: '', CustomStats: [],
+};
+// Native defaults of UFS_DaggerStats (same constructor file in the executable): DamageMult 1, CooldownTime 15 s, Force 0.33
+const DAGGER_DEFAULTS = { DamageMult: 1, CooldownTime: 15, Force: 0.33, PrimaryResourceGenMult: 1, DamageTypes: [], DamageTypeDisplay: '', CustomStats: [] };
+
+/** Every weapon (melee, gun, throwing) and accessory with its stats. src = stats-src.json, md = markers.json. */
+function gearFrom(src, md) {
+  const strip = p => String(p || '').replace(/^QueensDomain\/Content\//, '/Game/').replace(/\.\d+$/, '').replace(/\.[^/.]+$/, '');
+  const mdItem = new Map(md.items.map(x => [strip(x.p), x]));
+  const grimoireOf = new Map(); // item -> number of the Witch's Grimoire inscription that gives it
+  src.grimoire.forEach((list, i) => { for (const p of list) grimoireOf.set(strip(p), i + 1); });
+  const exportsByPkg = new Map(Object.entries(src.packages));
+  const findExport = objPath => (exportsByPkg.get(strip(objPath)) || []).find(e => e.Type === 'FS_WeaponStats' || e.Type === 'FS_DaggerStats');
+  // weapon script class -> parent class, to tell guns from melee weapons
+  const parentOf = {};
+  for (const exps of exportsByPkg.values()) {
+    const c = exps.find(e => e.Type === 'BlueprintGeneratedClass');
+    if (c) parentOf[c.Name] = String(c.Super?.ObjectName || '').replace(/^.*'(.*)'$/, '$1');
+  }
+  const isGunScript = script => {
+    let x = String(script || '').split('/').pop().replace(/^.*\./, ''); // ".../X.X_C" -> "X_C"
+    for (let i = 0; i < 6 && x; i++) { if (x === 'GunBase_WeaponScript_C') return true; x = parentOf[x]; }
+    return false;
+  };
+
+  const text = t => (t && (t.LocalizedString || t.SourceString)) || '';
+  const short = s => String(s || '').replace(/^.*::/, '').replace(/^EWR_|^EWDTD_|^EAAN_/, '');
+  const sourceOf = (pkg, it) => {
+    if (grimoireOf.has(pkg)) return { kind: 'grimoire', text: `Witch's Grimoire, inscription #${grimoireOf.get(pkg)}` };
+    const from = (it?.src || []).map(s => s[0]);
+    if (it?.placed) return { kind: 'world', text: from.length ? 'Found in the world; also: ' + from.join('; ') : 'Found in the world' };
+    if (from.length) return { kind: /evolv/i.test(from.join(' ')) ? 'evolution' : /shop|sold|buy/i.test(from.join(' ')) ? 'shop' : 'other', text: from.join('; ') };
+    return { kind: 'unknown', text: '' };
+  };
+
+  const weapons = [], accessories = [];
+  for (const [pkg, exps] of exportsByPkg) {
+    for (const e of exps) {
+      if (e.Type !== 'FS_ItemData_C') continue;
+      const P = e.Properties || {};
+      const it = mdItem.get(pkg);
+      const name = it?.n || text(P['Item Name']) || text(P.ImportedName) || e.Name;
+      const desc = it?.d || text(P['Item Description']);
+      if (P.StatData && (P.Category === 'ItemCategory::NewEnumerator2' || P.Category === 'ItemCategory::NewEnumerator3')) {
+        const st = findExport(P.StatData.ObjectPath);
+        if (!st) { console.error('no stats for', pkg); continue; }
+        if (st.Type === 'FS_DaggerStats') {
+          const T = { ...DAGGER_DEFAULTS, ...st.Properties };
+          weapons.push({
+            pkg, name, desc, kind: 'throwing', source: sourceOf(pkg, it),
+            dmg: T.DamageMult, cooldown: T.CooldownTime, speedText: text(T.SpeedText),
+            typeDisplay: short(T.DamageTypeDisplay), types: (T.DamageTypes || []).map(t => String(t).replace(/^.*\./, '')),
+            custom: Object.fromEntries((T.CustomStats || []).filter(c => c.Key !== 'None').map(c => [c.Key, c.Value])),
+            noBelt: !!T.bDontRequireBelt,
+          });
+          continue;
+        }
+        const W = { ...DEFAULTS, ...st.Properties };
+        weapons.push({
+          pkg, name, desc, kind: isGunScript(P.LogicComponent?.AssetPathName) ? 'gun' : 'melee', source: sourceOf(pkg, it),
+          light: W.PrimaryAttackPower, heavy: W.SecondaryAttackPower, lightUp: W.PrimaryAttackPower_Upgraded, heavyUp: W.SecondaryAttackPower_Upgraded,
+          meter: W.PowerMeterTime, lightMin: W.PrimaryPowerMeterMinStrength, lightMax: W.PrimaryPowerMeterMaxStrength,
+          heavyMin: W.SecondaryPowerMeterMinStrength, heavyMax: W.SecondaryPowerMeterMaxStrength,
+          anim: W.AttackAnimSpeed, gunRate: W.GunFireRate, charges: W.MaxCharges, maxLevel: W.MaxWeaponLevel, perLevel: W.AttackPowerIncreasePerLevel,
+          energyLight: W.PrimaryEnergyConsumption, energyHeavy: W.SecondaryEnergyConsumption,
+          range: short(W.WeaponRange), width: short(W.WeaponWidth), types: (W.DamageTypes || []).map(t => t.replace(/^.*\./, '')), typeDisplay: short(W.DamageTypeDisplay),
+          custom: Object.fromEntries((W.CustomStats || []).map(c => [c.Key, c.Value])),
+          evolvesTo: W.Evolution ? strip(W.Evolution.ObjectPath || W.Evolution.AssetPathName || JSON.stringify(W.Evolution)) : '',
+        });
+      } else if (P.Category === 'ItemCategory::NewEnumerator1' && P.EquipSlot === 'ItemEquipSlotType::NewEnumerator0') {
+        accessories.push({
+          pkg, name, desc, source: sourceOf(pkg, it),
+          tags: Object.fromEntries((P.DataTags || []).filter(t => t.Key !== 'None').map(t => [t.Key, t.Value])),
+          itemTags: (P.ItemTags || []).map(t => t.replace(/^ItemTags\./, '')),
+        });
+      }
+    }
+  }
+  // evolution: name the target
+  const byPkg = new Map(weapons.map(w => [w.pkg, w]));
+  for (const w of weapons) if (w.evolvesTo) w.evolvesToName = byPkg.get(w.evolvesTo)?.name || w.evolvesTo.split('/').pop();
+  weapons.sort((a, b) => a.kind.localeCompare(b.kind) || a.name.localeCompare(b.name));
+  accessories.sort((a, b) => a.name.localeCompare(b.name));
+
+  // the shape the tables below read
+  const clean = d => String(d || '').replace(/<img[^>]*><\/>/g, '').replace(/\s*\n\s*/g, ' ').trim();
+  const grimNo = s => +(/#(\d+)/.exec(s.text) || [])[1] || 0;
+  const shared = x => ({ desc: clean(x.desc), src: x.source.kind, srcText: x.source.text, g: x.source.kind === 'grimoire' ? grimNo(x.source) : 0 });
+  return {
+    weapons: weapons.map(({ pkg, desc, source, evolvesTo, ...w }) => ({ ...w, ...shared({ desc, source }) })),
+    accessories: accessories.map(a => ({ name: a.name, ...shared(a), tags: a.tags, itemTags: a.itemTags })),
+  };
+}
+
+async function loadGear() {
+  const get = async f => {
+    const r = await fetch('data/' + f, { cache: 'no-store' });
+    if (!r.ok) throw new Error(f);
+    return r.json();
+  };
+  try {
+    const [src, md] = await Promise.all([get('stats-src.json'), get('markers.json')]);
+    return gearFrom(src, md);
+  } catch (e) {
+    document.querySelector('main').innerHTML = '<p style="max-width:640px;margin:48px auto;line-height:1.6">The gear data is not there yet. ' +
+      'This page is part of the Queen\'s Domain map: start <b>QueensDomainMap.exe</b> and open it from there (the icon next to the clock &rarr; Gear stats). ' +
+      'If the map was built by an older version, rebuild it first: map page &rarr; View &rarr; Rebuild the map.</p>';
+    throw e;
+  }
+}
+const D = await loadGear();
+const $ = s => document.querySelector(s);
+const esc = v => String(v ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const S = { tab: 'melee', q: '', src: 'all', lvl: '1', plv: 1, special: false, sort: { melee: ['dps', -1], gun: ['dps', -1], throwing: ['dps', -1], acc: ['name', 1] } };
+try { Object.assign(S, JSON.parse(localStorage.getItem('qd-stats') || '{}')); } catch {}
+const save = () => { try { localStorage.setItem('qd-stats', JSON.stringify(S)); } catch {} };
+
+const fmt = (v, d = 2) => v == null || Number.isNaN(v) ? '<span class="dash">—</span>' : String(Number((+v).toFixed(d)));
+const pct = v => Math.round(v * 100) + '%';
+const words = s => String(s || '').replace(/And/g, ' + ').replace(/Or/g, ' or ').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/Impact/g, 'Blunt');
+const typeOf = w => w.typeDisplay ? words(w.typeDisplay) : (w.types || []).map(t => t === 'Slashing' ? 'Slash' : t).join(' + ') || '—';
+const reachOf = w => w.range ? words(w.range) : 'Normal';
+const base = () => 10 + 0.75 * S.plv;
+const srcOk = x => S.src === 'all' || (S.src === 'grimoire' ? x.src === 'grimoire' : x.src !== 'grimoire');
+const qOk = x => !S.q || (x.name + ' ' + (x.srcText || '') + ' ' + (x.desc || '')).toLowerCase().includes(S.q);
+const isPostGame = w => w.name === 'Nyx Thorn Blade';
+
+const CUSTOM = {
+  Luck: v => '+' + v + ' luck while held', MagicRate: v => '+' + pct(v) + ' magic charge rate while held',
+  LightRadius: v => 'gives light (radius ' + v + ')', InHandDamageReduction: v => '−' + pct(v) + ' damage taken while held',
+  DamageReductionPercent: v => '−' + pct(v) + ' damage taken while held', InHandRegenPerSecond: v => '+' + v + ' HP/s while held',
+  HPStealPercent: v => 'heals ' + pct(v) + ' of damage dealt', PrimaryHPStealPercent: v => 'light attacks heal ' + pct(v) + ' of damage dealt',
+  SecondaryHPStealPercent: v => 'alt attack heals ' + pct(v) + ' of damage dealt', LifeStealPercent: v => 'heals ' + pct(v) + ' of damage dealt',
+  SecondaryWoundDamage: v => 'alt attack costs your own HP (' + pct(v) + ')', NoPowerDamageMult: v => 'empty-meter hits ×' + v,
+  AOE: v => 'area ' + v, AltAOE: v => 'alt attack area ' + v, SecondaryAOE: v => 'alt attack area ' + v, SecondaryAttackAOE: v => 'alt attack area ' + v,
+  HeavyDuration: v => 'makes foes heavy for ' + v + ' s', PrimaryHeavyDuration: v => 'light attacks make foes heavy ' + v + ' s', SecondaryHeavyDuration: v => 'alt attack makes foes heavy ' + v + ' s',
+  ParalyzeDuration: v => 'paralyses ' + v + ' s', ParalysisDuration: v => 'paralyses ' + v + ' s', PrimaryParalysisDuration: v => 'light attacks paralyse ' + v + ' s', SecondaryParalyzeDuration: v => 'alt attack paralyses ' + v + ' s',
+  DiseaseDuration: v => 'diseases foes ' + v + ' s', WeakenDuration: v => 'weakens foes ' + v + ' s',
+  PoisonDamage: v => 'poisons', PoisonDamageConversion: v => pct(v) + ' of damage as poison', PrimaryPoisonConversion: v => 'light: ' + pct(v) + ' as poison',
+  PrimaryPoisonDamageConversion: v => 'light: ' + pct(v) + ' as poison', SecondaryPoisonDamageConversion: v => 'alt: ' + pct(v) + ' as poison',
+  MagicFireConversion: v => pct(v) + ' of damage as magic fire', 'MagicFireDamageConversion%': v => pct(v) + ' of damage as magic fire', MagicFireDamageConversionPercent: v => pct(v) + ' of damage as magic fire',
+  ProjectileDamageMult: v => 'projectile ×' + v, ProjectileDamagePercent: v => 'projectile deals ' + pct(v), SecondaryStabCount: v => 'alt attack stabs ' + v + '×',
+  XPStealMult: v => 'drains XP ×' + v, AltAttackXPStealMult: v => 'alt attack drains XP ×' + v, DropChanceIncrease: v => '+' + v + ' drop chance',
+  ActiveRunningSpeedMutliplier: v => 'run ×' + v + ' while active', HealingPerSecond: v => 'heals ' + v + ' HP/s', HealingDuration: v => 'for ' + v + ' s',
+  BindingResistance: v => '+' + pct(v) + ' binding resistance while held', StickyResistance: v => '+' + pct(v) + ' sticky resistance while held',
+  CellConsumption: v => 'uses ' + v + ' energy cell per throw', JackpotChance: v => 'jackpot chance ' + pct(v),
+};
+const HIDE = new Set(['PowerMeterDrainPerTick', 'ProjectileResourceGenMult', 'SecondaryAttackHeight', 'SecondaryDamageTickRate', 'SecondaryProjectileReturnDelay', 'SecondaryProjectileVelocity', 'SpikeScale', 'SpikeSpawnRadius', 'SpikeSpawnRate', 'SpikeCountMultPerConsumedCharge', 'FlameTrailTickRate', 'SecondaryAttackChargeTimePerCell', 'ProjectileSecondaryHitMultiplier', 'SecondaryAttackAOEIncreasePerLevel', 'PrimaryMinPowerForStatus', 'FireTrailDamageMult', 'FlameTrailDuration', 'SpikeCountBase']);
+const specials = w => {
+  const out = Object.entries(w.custom || {}).filter(([k]) => !HIDE.has(k)).map(([k, v]) => CUSTOM[k] ? CUSTOM[k](v) : k.replace(/([a-z])([A-Z])/g, '$1 $2') + ' ' + v);
+  if (w.custom && ('SpikeCountBase' in w.custom)) out.push('summons spikes');
+  if (w.custom && ('FlameTrailDuration' in w.custom)) out.push('leaves a flame trail');
+  if (w.evolvesToName) out.push('evolves into ' + w.evolvesToName);
+  if (w.noBelt) out.push('no dagger belt needed');
+  return out.join(' · ');
+};
+
+const ACC = {
+  DamageMultiplier: v => ({ t: '+' + pct(v - 1) + ' damage', c: 'Offence' }), BaseDamageIncrease: v => ({ t: '+' + v + ' flat damage (big early, small late)', c: 'Offence' }),
+  AttackSpeedBonus: v => ({ t: '+' + pct(v) + ' attack speed', c: 'Offence' }), HPStealPercent: v => ({ t: 'heals ' + pct(v) + ' of damage dealt', c: 'Offence' }),
+  MagicRate: v => ({ t: '+' + pct(v) + ' magic charge rate', c: 'Offence' }), UltraChargeRateIncrease: v => ({ t: '+' + pct(v) + ' Ultra Charge rate', c: 'Offence' }),
+  GunChargeRateIncrease: v => ({ t: 'energy cells recharge ' + pct(v) + ' faster', c: 'Offence' }), DaggerChargeTimeMult: v => ({ t: 'throwing weapons recharge ' + pct(1 - v) + ' faster', c: 'Offence' }),
+  DamageReductionPercent: v => ({ t: '−' + pct(v) + ' damage taken', c: 'Defence' }), HPIncreasePercent: v => ({ t: '+' + pct(v) + ' max HP', c: 'Defence' }),
+  RegenPerSecond: v => ({ t: '+' + v + ' HP per second', c: 'Defence' }), HealingEffectIncrease: v => ({ t: '+' + pct(v) + ' healing received', c: 'Defence' }),
+  Cooldown: v => ({ t: 'blocks one hit completely, back after ' + v + ' s', c: 'Defence' }),
+  TakenDamageMultiplier: v => ({ t: '+' + pct(v) + ' damage taken', c: 'Challenge', neg: true }),
+  AllResistances: v => ({ t: '+' + pct(v) + ' resistance to every status effect', c: 'Resistance' }),
+  PoisonResistance: v => ({ t: '+' + pct(v) + ' poison resistance', c: 'Resistance' }), BindingResistance: v => ({ t: '+' + pct(v) + ' binding resistance', c: 'Resistance' }),
+  WeakenResistance: v => ({ t: '+' + pct(v) + ' weaken resistance', c: 'Resistance' }), DiseaseResistance: v => ({ t: '+' + pct(v) + ' disease resistance', c: 'Resistance' }),
+  HeavyResistance: v => ({ t: '+' + pct(v) + ' heavy resistance', c: 'Resistance' }), StickyResistance: v => ({ t: '+' + pct(v) + ' sticky resistance', c: 'Resistance' }),
+  MagicPoisonResistance: v => ({ t: '+' + pct(v) + ' magic rot resistance', c: 'Resistance' }), MagicPoisonDegenMultiplier: v => ({ t: 'magic rot builds ×' + v, c: 'Resistance' }),
+  Luck: v => ({ t: '+' + v + ' luck (better drops)', c: 'Utility' }), LightRadius: v => ({ t: 'light (radius ' + v + ')', c: 'Utility' }),
+  XPIncrease: v => ({ t: '+' + pct(v) + ' XP', c: 'Utility' }), WeaponXPIncrease: v => ({ t: '+' + pct(v) + ' weapon XP', c: 'Utility' }),
+};
+const ACC_TAGS = { NoWXP: 'weapons stop levelling up', NoXP: 'you stop gaining XP', NoFood: 'food does nothing', RuneVisionCharm: 'see and dispel the four gods\' magic (with lenses)', Vampirism: '' };
+const accFx = a => {
+  const fx = Object.entries(a.tags).map(([k, v]) => ACC[k] ? ACC[k](v) : { t: k + ' ' + v, c: 'Utility' });
+  for (const t of a.itemTags) if (ACC_TAGS[t]) fx.push({ t: ACC_TAGS[t], c: t.startsWith('No') ? 'Challenge' : 'Utility', neg: t.startsWith('No') });
+  return fx;
+};
+const accGroup = a => { const c = accFx(a).map(f => f.c); return ['Challenge', 'Offence', 'Defence', 'Resistance', 'Utility'].find(g => c.includes(g)) || 'Utility'; };
+
+// per weapon level mode: returns the factor, or null when the weapon has no such mode
+function melee(w) {
+  const lv = S.lvl === 'max' ? 1 + w.perLevel * w.maxLevel : 1;
+  const up = S.lvl === 'up';
+  const light = up ? (w.lightUp > 0 ? w.lightUp : null) : w.light * lv;
+  const heavy = up ? (w.lightUp > 0 ? w.heavyUp : null) : w.heavy * lv;
+  const hit = light == null ? null : base() * light * w.lightMax;
+  return { hit, charged: hit == null ? null : hit * 1.333, dps: hit == null ? null : hit / w.meter, alt: heavy == null ? null : base() * heavy * w.heavyMax };
+}
+function gun(w) {
+  const lv = S.lvl === 'max' ? 1 + w.perLevel * w.maxLevel : 1;
+  const up = S.lvl === 'up';
+  const p = up ? (w.lightUp > 0 ? w.lightUp : null) : w.light * lv;
+  const a = up ? (w.lightUp > 0 ? w.heavyUp : null) : w.heavy * lv;
+  const shot = p == null ? null : base() * p;
+  return { shot, rate: w.gunRate || null, dps: shot == null || !w.gunRate ? null : shot * w.gunRate / 60, alt: a == null ? null : base() * a };
+}
+function thrown(w) { const hit = base() * w.dmg; return { hit, dps: hit / w.cooldown }; }
+
+const COLS = {
+  melee: [
+    { k: 'name', h: 'Weapon', s: r => r.w.name },
+    { k: 'type', h: 'Damage type', s: r => typeOf(r.w) },
+    { k: 'reach', h: 'Reach', s: r => ['Very Short', 'Short', 'Slightly Short', 'Normal', 'Slightly Long', 'Long', 'Very Long', 'Extremely Long'].indexOf(reachOf(r.w)) },
+    { k: 'hit', h: 'Light hit', n: 1, s: r => r.v.hit, t: 'Damage of a full-power light attack' },
+    { k: 'charged', h: 'Charged', n: 1, s: r => r.v.charged, t: 'Light attack held to full charge (×1.333)' },
+    { k: 'meter', h: 'Meter', n: 1, s: r => r.w.meter, t: 'Seconds for the power meter to refill after a swing' },
+    { k: 'dps', h: 'Damage / s', n: 1, bar: 1, s: r => r.v.dps, t: 'Light hit ÷ meter time: sustained damage per second' },
+    { k: 'alt', h: 'Alt hit', n: 1, s: r => r.v.alt, t: 'The second attack (right button) at full power' },
+    { k: 'charges', h: 'Charges', n: 1, s: r => r.w.charges, t: 'Ability charges the alt attack can use' },
+    { k: 'maxLevel', h: 'Max lv', n: 1, s: r => r.w.maxLevel, t: 'Weapon level cap; +3% power per level' },
+    { k: 'spec', h: 'Specials', s: r => specials(r.w) },
+    { k: 'src', h: 'How to get it', s: r => r.w.srcText },
+  ],
+  gun: [
+    { k: 'name', h: 'Weapon', s: r => r.w.name },
+    { k: 'type', h: 'Damage type', s: r => typeOf(r.w) },
+    { k: 'shot', h: 'Shot', n: 1, s: r => r.v.shot, t: 'Damage per shot' },
+    { k: 'rate', h: 'Rate / min', n: 1, s: r => r.v.rate, t: 'Shots per minute (blank: the weapon times its own shots)' },
+    { k: 'dps', h: 'Damage / s', n: 1, bar: 1, s: r => r.v.dps, t: 'While firing continuously, before running out of energy' },
+    { k: 'alt', h: 'Alt shot', n: 1, s: r => r.v.alt },
+    { k: 'energy', h: 'Cells / shot', n: 1, s: r => r.w.energyLight || null, t: 'Energy cells used per shot' },
+    { k: 'maxLevel', h: 'Max lv', n: 1, s: r => r.w.maxLevel },
+    { k: 'spec', h: 'Specials', s: r => specials(r.w) },
+    { k: 'src', h: 'How to get it', s: r => r.w.srcText },
+  ],
+  throwing: [
+    { k: 'name', h: 'Weapon', s: r => r.w.name },
+    { k: 'type', h: 'Damage type', s: r => typeOf(r.w) },
+    { k: 'hit', h: 'Hit', n: 1, s: r => r.v.hit },
+    { k: 'cooldown', h: 'Cooldown', n: 1, s: r => r.w.cooldown, t: 'Seconds until it can be thrown again' },
+    { k: 'dps', h: 'Damage / s', n: 1, bar: 1, s: r => r.v.dps, t: 'Hit ÷ cooldown' },
+    { k: 'speed', h: 'Throw speed', s: r => ['Instant', 'Fast', 'Average', 'Slow', 'Very Slow'].indexOf(r.w.speedText) },
+    { k: 'spec', h: 'Specials', s: r => specials(r.w) },
+    { k: 'src', h: 'How to get it', s: r => r.w.srcText },
+  ],
+  acc: [
+    { k: 'name', h: 'Accessory', s: r => r.a.name },
+    { k: 'group', h: 'Kind', s: r => accGroup(r.a) },
+    { k: 'fx', h: 'Effects', s: r => accFx(r.a).map(f => f.t).join('; ') },
+    { k: 'src', h: 'How to get it', s: r => r.a.srcText },
+  ],
+};
+
+function rows() {
+  if (S.tab === 'acc') return D.accessories.filter(a => srcOk(a) && qOk(a)).map(a => ({ a }));
+  return D.weapons.filter(w => w.kind === S.tab && srcOk(w) && qOk(w) && (S.special || !isPostGame(w)))
+    .map(w => ({ w, v: S.tab === 'melee' ? melee(w) : S.tab === 'gun' ? gun(w) : thrown(w) }));
+}
+
+function render() {
+  for (const b of document.querySelectorAll('#tabs button')) b.classList.toggle('on', b.dataset.tab === S.tab);
+  for (const b of document.querySelectorAll('#src button')) b.classList.toggle('on', b.dataset.v === S.src);
+  for (const b of document.querySelectorAll('#lvl button')) b.classList.toggle('on', b.dataset.v === S.lvl);
+  $('#wctl').hidden = S.tab === 'acc';
+  $('#special').closest('label').hidden = S.tab !== 'melee';
+  $('#plv').value = S.plv; $('#q').value = S.q; $('#special').checked = S.special;
+  const cols = COLS[S.tab];
+  const [sk, sd] = S.sort[S.tab];
+  const col = cols.find(c => c.k === sk) || cols[0];
+  const list = rows();
+  list.sort((x, y) => {
+    const a = col.s(x), b = col.s(y);
+    if (a == null && b == null) return 0;
+    if (a == null) return 1;
+    if (b == null) return -1;
+    return (typeof a === 'string' ? a.localeCompare(b) : a - b) * sd;
+  });
+  const barCol = cols.find(c => c.bar);
+  const max = barCol ? Math.max(...list.map(r => barCol.s(r) || 0)) : 0;
+  // strongest and weakest by the bar metric, among what is shown
+  const ranked = barCol ? list.filter(r => barCol.s(r) != null).sort((x, y) => barCol.s(y) - barCol.s(x)) : [];
+  const top = new Set(ranked.slice(0, 5)), low = new Set(ranked.length > 10 ? ranked.slice(-5) : []);
+  let h = '<thead><tr><th>#</th>' + cols.map(c => '<th data-k="' + c.k + '" class="' + (c.n ? 'num' : '') + '"' + (c.t ? ' title="' + esc(c.t) + '"' : '') + '>' + esc(c.h) +
+    (c.k === sk ? '<span class="arrow">' + (sd > 0 ? '▲' : '▼') + '</span>' : '') + '</th>').join('') + '</tr></thead><tbody>';
+  list.forEach((r, i) => {
+    const x = r.w || r.a;
+    h += '<tr><td class="rank">' + (i + 1) + '</td>';
+    for (const c of cols) {
+      if (c.k === 'name') {
+        h += '<td class="name" title="' + esc(x.desc) + '">' + esc(x.name) + (x.g ? '<span class="badge g" title="Witch\'s Grimoire inscription #' + x.g + '">G' + x.g + '</span>' : '') +
+          (top.has(r) ? '<span class="badge top">top 5</span>' : '') + (low.has(r) ? '<span class="badge low">bottom 5</span>' : '') +
+          (r.w && isPostGame(r.w) ? '<span class="badge x">post-game</span>' : '') + '</td>';
+      } else if (c.k === 'fx') {
+        h += '<td><ul class="fx">' + accFx(r.a).map(f => '<li' + (f.neg ? ' class="neg"' : '') + '>' + esc(f.t) + '</li>').join('') + '</ul></td>';
+      } else if (c.k === 'spec') h += '<td class="spec">' + esc(c.s(r)) + '</td>';
+      else if (c.k === 'src') h += '<td class="src">' + esc(c.s(r)) + '</td>';
+      else if (c.k === 'reach') h += '<td>' + esc(reachOf(r.w)) + '</td>';
+      else if (c.k === 'speed') h += '<td>' + esc(r.w.speedText || '—') + '</td>';
+      else if (c.n) {
+        const v = c.s(r);
+        const d = c.k === 'meter' || c.k === 'cooldown' || c.k === 'energy' ? 2 : c.k === 'rate' || c.k === 'charges' || c.k === 'maxLevel' ? 0 : 1;
+        const cell = c.k === 'charges' && !v ? '<span class="dash">—</span>' : fmt(v, d);
+        h += '<td class="num">' + (c.bar && v != null ? '<div class="metric">' + cell + '<div class="bar"><i style="width:' + Math.max(2, 100 * v / (max || 1)).toFixed(1) + '%"></i></div></div>' : cell) + '</td>';
+      } else h += '<td>' + esc(c.s(r)) + '</td>';
+    }
+    h += '</tr>';
+  });
+  $('#t').innerHTML = h + '</tbody>';
+  const lvText = S.lvl === '1' ? 'weapon level 1' : S.lvl === 'max' ? 'each weapon at its level cap' : 'upgraded at the upgrade machine';
+  $('#note').textContent = S.tab === 'acc' ? list.length + ' accessories.'
+    : list.length + ' shown · player level ' + S.plv + ' (attack power ' + fmt(base(), 2) + ') · ' + (S.tab === 'throwing' ? 'throwing weapons do not level up' : lvText) + '.';
+  save();
+}
+
+document.querySelector('#tabs').onclick = e => { const b = e.target.closest('button'); if (b) { S.tab = b.dataset.tab; render(); } };
+document.querySelector('#src').onclick = e => { const b = e.target.closest('button'); if (b) { S.src = b.dataset.v; render(); } };
+document.querySelector('#lvl').onclick = e => { const b = e.target.closest('button'); if (b) { S.lvl = b.dataset.v; render(); } };
+$('#q').oninput = e => { S.q = e.target.value.trim().toLowerCase(); render(); };
+$('#plv').oninput = e => { const v = Math.round(+e.target.value); if (v >= 1 && v <= 200) { S.plv = v; render(); } };
+$('#special').onchange = e => { S.special = e.target.checked; render(); };
+$('#t').onclick = e => {
+  const th = e.target.closest('th[data-k]');
+  if (!th) return;
+  const cur = S.sort[S.tab];
+  const col = COLS[S.tab].find(c => c.k === th.dataset.k);
+  S.sort[S.tab] = cur[0] === th.dataset.k ? [cur[0], -cur[1]] : [th.dataset.k, col.n ? -1 : 1];
+  render();
+};
+render();
+</script>
+</body>
+</html>
