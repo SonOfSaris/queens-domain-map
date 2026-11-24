@@ -149,7 +149,7 @@ Numbers from the November 2026 build of the game:
 | --- | --- |
 | Zones (streamed levels) | 39 |
 | Triangles of world geometry | about 14 million |
-| Item pickups | 1,614 (177 key items, 90 weapons, 19 accessories, 115 upgrades, 93 treasures, 690 consumables, 429 coin pickups, 1 artifact) |
+| Item pickups | 1,612 (177 key items, 88 weapons, 19 accessories, 115 upgrades, 93 treasures, 690 consumables, 429 coin pickups, 1 artifact) |
 | Secret walls and hidden doors | 124 |
 | Bosses and minibosses | 27 |
 | Enemy spawn points (off by default) | 1,684 |

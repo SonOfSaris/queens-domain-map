@@ -39,6 +39,7 @@ public sealed class Marker
     public List<int> Req;       // required item indices
     public int Enemy = -1;
     public bool Boss, Hidden;
+    public bool Orphan;         // pickups: waits to be activated, and no actor of its level points at it
     public List<object[]> Shop; // [itemIdx, price, stock (-1 = unlimited), requiredProgression]
     public int By = -1;          // item markers for something a one-time enemy carries: that enemy
     public string How;           // ...and how it changes hands: "drop" (on defeat) or "open" (mimics)
@@ -343,6 +344,7 @@ public sealed partial class MarkerCollector
                     var diff = dn.Text;
                     if (!string.IsNullOrEmpty(diff) && diff != "None") m.Diff = diff[(diff.LastIndexOf('_') + 1)..];
                 }
+                m.Orphan = m.Hidden && !refs.ContainsKey(actor);
                 if (refs.TryGetValue(actor, out var srcs))
                 {
                     foreach (var (src, prop) in srcs)
@@ -353,7 +355,7 @@ public sealed partial class MarkerCollector
                         {
                             c = "Chest";
                             var key = ItemFromValue(P.Get<FPackageIndex>(src, "RequiredKey"));
-                            if (key != null) (m.Req ??= new List<int>()).Add(key.Idx);
+                            if (key != null && !(m.Req ??= new List<int>()).Contains(key.Idx)) m.Req.Add(key.Idx);
                         }
                         else if (sc.Contains("Pot_Base_C")) c = "Pot";
                         else if (sc.Contains("Permabreakable_base_C")) c = Pretty(src.ExportType);
@@ -376,10 +378,12 @@ public sealed partial class MarkerCollector
                 var contents = new List<int[]>();
                 var notes = new List<string>();
                 {
+                    // (a chest may list the same actor twice: Castle_Chest_00_BP5_5 does with its Plasma Knife)
+                    var seen = new HashSet<UObject>(ReferenceEqualityComparer.Instance);
                     foreach (var ai in P.Refs(actor, "ActorsToActivateOnOpen"))
                     {
                         var t = P.Obj(ai);
-                        if (t == null) continue;
+                        if (t == null || !seen.Add(t)) continue;
                         var tc = P.ClassChain(t);
                         if (tc.Contains("ItemPickup_Base_C")) contents.AddRange(ItemMap(t, "ItemsToGrant"));
                         else if (tc.Contains("EnemySpawner_C")) notes.Add("Ambush: " + (Enemy(P.Obj(P.Get<FPackageIndex>(t, "EnemyData")))?.Name ?? Pretty(t.ExportType)));
@@ -566,6 +570,25 @@ public sealed partial class MarkerCollector
             data.SaveTo(fs);
             Console.Error.WriteLine($"icons: {n} in atlas");
             Progress.Report(WorldExporter.PItems.From + 0.03, "Finding out where every item comes from");
+        }
+
+        // ---- leftover copies of chest contents ----
+        // A pickup that waits to be activated (RequireActivation) stays hidden and cannot be taken until something calls Activate
+        // on it, and only an actor of its own level can point at it. One that nothing points at never appears in the game. The
+        // 14 Nov 2026 build has two, both in 500_AUT and each exactly where a chest of another level holds the same item (Vampiric
+        // Blade in 450_MAUS_darkmaze, Plasma Knife in 600_Castle): what stayed behind when those chests moved to another level.
+        // Such a copy is not a pickup of its own, so it is left off the map. One without a twin is kept: better a marker too
+        // many than a pickup missing, should something else turn out to activate it.
+        static bool SameItems(List<int[]> a, List<int[]> b) =>
+            a.Count == b.Count && a.Select(i => (i[0], i[1])).OrderBy(i => i).SequenceEqual(b.Select(i => (i[0], i[1])).OrderBy(i => i));
+        static float Dist(float[] a, float[] b) => MathF.Sqrt((a[0] - b[0]) * (a[0] - b[0]) + (a[1] - b[1]) * (a[1] - b[1]) + (a[2] - b[2]) * (a[2] - b[2]));
+        foreach (var m in Markers.Where(m => m.Type == "item" && m.Orphan).ToArray())
+        {
+            var twin = Markers.FirstOrDefault(o => o.Type == "item" && !o.Orphan && o.Container != null && SameItems(o.Items, m.Items) && Dist(o.Pos, m.Pos) < 1.5f);
+            if (twin != null) Markers.Remove(m);
+            Console.Error.WriteLine(twin != null
+                ? $"leftover: {m.Id} is never activated and duplicates {twin.Id} ({twin.Container}): not on the map"
+                : $"note: {m.Id} waits for activation but nothing in its level points at it (kept on the map)");
         }
 
         // ---- treasures carried by enemies that never come back: as good as a pickup at the enemy's spawn point ----

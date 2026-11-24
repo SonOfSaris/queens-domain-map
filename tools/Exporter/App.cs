@@ -20,8 +20,8 @@ public static class App
     public const string Name = "Queen's Domain Map";
     public const string Id = "QueensDomainMap";
 
-    /// <summary>Raise when the exporter writes something the page needs that older data lacks: the page then offers a rebuild.</summary>
-    public const int DataFormat = 1;
+    /// <summary>Raise when the exporter writes something the page needs that older data lacks, or corrects what it wrote: the page then offers a rebuild.</summary>
+    public const int DataFormat = 2;
 
     public static readonly string Version =
         typeof(App).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion?.Split('+')[0] ?? "dev";
